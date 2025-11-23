@@ -1,0 +1,42 @@
+{
+  "pipelines": {
+    "Sales Pipeline": "Z77zWMkKkuU0m9PNRmqv"
+  },
+  "calendars": {},
+  "custom_fields": {
+    "ai_call_summary": "ct4ylqCrF4tnI9AyfYnY",
+    "call_transcript_url": "c4PClL8oLRvkVcFQhWIu",
+    "sms_consent": "J36cY5zl7j4ndbzy2Bwu",
+    "lead_quality_score": "WBnpqlfeUcjdqZubMulg",
+    "equipment_type": "nLDgmuVYqiPzQwNsMNNE",
+    "call_duration": "f6T1WUoKUQNMgFPD3pxc",
+    "call_type": "Dth41ZNco2HwFugnuOxv",
+    "call_outcome": "ZC15uZbINfB3er88oJTA",
+    "vapi_called": "WZeap5TPv5iuYGnj0ixa",
+    "vapi_call_id": "L2R8cMN0jVsupQpcHLSE"
+  },
+  "webhooks": {
+    "status": "manual_configuration_required",
+    "url": "https://your-domain.com",
+    "events": [
+      "contact.created",
+      "contact.updated",
+      "appointment.created",
+      "form.submitted"
+    ]
+  },
+  "workflows": {
+    "count": 26,
+    "note": "Create automations manually in GHL UI for SMS/email confirmations"
+  },
+  "errors": [
+    "locations/NHEXwG3xQVwKMO77jAuB/customFields/: HTTP 400: {\"message\":\"contact.contactai_call_summary already exists. Please input a different name or fieldKey.\",\"error\":\"Bad Request\",\"statusCode\":400,\"traceId\":\"9321515a-ad8a-49f7-b0e9-9cb0f33a838e\"}",
+    "locations/NHEXwG3xQVwKMO77jAuB/customFields/: HTTP 400: {\"message\":\"contact.contactcall_transcript_url already exists. Please input a different name or fieldKey.\",\"error\":\"Bad Request\",\"statusCode\":400,\"traceId\":\"a55b6e9f-b563-46fc-9b73-5acaf1d7a810\"}",
+    "locations/NHEXwG3xQVwKMO77jAuB/customFields/: HTTP 400: {\"message\":\"contact.contactsms_consent already exists. Please input a different name or fieldKey.\",\"error\":\"Bad Request\",\"statusCode\":400,\"traceId\":\"9cdb689a-f71d-43c3-b6c4-22c15bacb092\"}",
+    "locations/NHEXwG3xQVwKMO77jAuB/customFields/: HTTP 400: {\"message\":\"contact.contactlead_quality_score already exists. Please input a different name or fieldKey.\",\"error\":\"Bad Request\",\"statusCode\":400,\"traceId\":\"1b835e19-843f-43e9-8274-ff5ac447d870\"}",
+    "locations/NHEXwG3xQVwKMO77jAuB/customFields/: HTTP 400: {\"message\":\"contact.contactequipment_type already exists. Please input a different name or fieldKey.\",\"error\":\"Bad Request\",\"statusCode\":400,\"traceId\":\"0a891986-63ee-415f-9ddd-35d14a1948e1\"}",
+    "locations/NHEXwG3xQVwKMO77jAuB/customFields/: HTTP 400: {\"message\":\"contact.contactcall_outcome already exists. Please input a different name or fieldKey.\",\"error\":\"Bad Request\",\"statusCode\":400,\"traceId\":\"bd985cc2-3295-4697-91ab-8b16bf322535\"}",
+    "locations/NHEXwG3xQVwKMO77jAuB/customFields/: HTTP 400: {\"message\":\"contact.contactvapi_called already exists. Please input a different name or fieldKey.\",\"error\":\"Bad Request\",\"statusCode\":400,\"traceId\":\"56078154-843c-41b9-9b94-5cb238b69811\"}",
+    "locations/NHEXwG3xQVwKMO77jAuB/customFields/: HTTP 400: {\"message\":\"contact.contactvapi_call_id already exists. Please input a different name or fieldKey.\",\"error\":\"Bad Request\",\"statusCode\":400,\"traceId\":\"83ae53ab-dbda-422a-9f2b-1d6abb6d6cad\"}"
+  ]
+}

@@ -1,0 +1,34 @@
+# Files to ignore when deploying to Fly.io
+# Similar to .gitignore but for Fly deployments
+
+# Documentation
+*.md
+docs/
+MANUAL_*.md
+SETUP_*.md
+GHL_*.md
+DEPLOYMENT*.md
+IMPLEMENTATION_GUIDE.md
+
+# Scripts (not needed in production)
+scripts/
+tests/
+
+# Logs
+logs/
+*.log
+
+# Config files (use Fly secrets instead)
+.env
+.env.local
+.env.*.local
+ghl_setup_config.json
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+

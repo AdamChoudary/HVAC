@@ -1,0 +1,70 @@
+{
+  "arch": {
+    "stack": ["Python", "FastAPI", "uv", "Vapi.ai", "GoHighLevel API", "Twilio", "REST APIs", "Webhooks", "Pydantic"],
+    "decisions": [
+      {
+        "what": "Vapi.ai for voice agent orchestration",
+        "why": "Handles inbound/outbound calls, warm transfers, and voice AI processing",
+        "when": "2024-12-19"
+      },
+      {
+        "what": "GoHighLevel as CRM/calendar backend",
+        "why": "Central hub for contacts, appointments, pipelines, and automations",
+        "when": "2024-12-19"
+      },
+      {
+        "what": "Twilio for telephony infrastructure",
+        "why": "Phone routing, SMS fallback, warm transfer capabilities",
+        "when": "2024-12-19"
+      }
+    ]
+  },
+  "features": {
+    "inbound_voice_agent": {
+      "files": ["src/integrations/vapi/assistants.py", "src/functions/"],
+      "deps": ["vapi-ai", "twilio"],
+      "state": "active",
+      "notes": "24/7 inbound call handling with classification, booking, warm transfer"
+    },
+    "outbound_lead_engine": {
+      "files": ["src/webhooks/ghl.py", "src/integrations/vapi/"],
+      "deps": ["vapi-ai", "ghl-api"],
+      "state": "active",
+      "notes": "Automated outreach triggered by GHL webhooks for new leads"
+    },
+    "ghl_integration": {
+      "files": ["src/integrations/ghl/client.py"],
+      "deps": ["httpx"],
+      "state": "active",
+      "notes": "REST API client for contacts, calendars, appointments, pipelines"
+    },
+    "vapi_functions": {
+      "files": ["src/functions/", "src/main.py"],
+      "deps": ["fastapi"],
+      "state": "active",
+      "notes": "All 7 functions implemented: classifyCallType, checkCalendarAvailability, bookAppointment, createContact, sendConfirmation, initiateWarmTransfer, logCallSummary"
+    },
+    "error_handling": {
+      "files": ["src/utils/errors.py", "src/main.py"],
+      "deps": [],
+      "state": "active",
+      "notes": "Comprehensive error handling with custom exceptions and logging"
+    },
+    "validation": {
+      "files": ["src/utils/validation.py", "src/functions/create_contact.py"],
+      "deps": [],
+      "state": "active",
+      "notes": "Phone, email, ZIP code validation"
+    }
+  },
+  "debt": [],
+  "env": {
+    "VAPI_API_KEY": "Vapi.ai authentication",
+    "GHL_API_KEY": "GoHighLevel API key",
+    "GHL_LOCATION_ID": "GHL location identifier",
+    "TWILIO_ACCOUNT_SID": "Twilio account SID",
+    "TWILIO_AUTH_TOKEN": "Twilio auth token",
+    "TWILIO_PHONE_NUMBER": "Primary business phone number"
+  }
+}
+

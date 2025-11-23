@@ -1,0 +1,224 @@
+================================================================================
+VAPI TEST SCRIPTS - USAGE GUIDE
+================================================================================
+
+These scripts allow you to test all scenarios from TEST_PROTOCOL.txt
+and check call logs, tool executions, and identify errors.
+
+================================================================================
+SCRIPTS OVERVIEW
+================================================================================
+
+1. quick_test.py - Quick single question test
+2. run_test_scenarios.py - Run all test scenarios from protocol
+3. check_call_logs.py - Check and analyze call logs
+4. vapi_test_client.py - Extended Vapi client (used by other scripts)
+
+================================================================================
+SETUP
+================================================================================
+
+1. Set your Vapi API key:
+   export VAPI_API_KEY=bee0337d-41cd-49c2-9038-98cd0e18c75b
+
+2. Have a test phone number ready (E.164 format, e.g., +15035550101)
+
+3. Make sure your phone can receive calls for testing
+
+================================================================================
+USAGE EXAMPLES
+================================================================================
+
+1. QUICK TEST - Test a single question:
+   -------------------------------------
+   uv run python scripts/quick_test.py "My furnace isn't working" --phone +15035550101
+
+   This will:
+   - Create a call to your phone
+   - Answer the call and ask the question
+   - Show call status and any errors
+
+
+2. RUN ALL TEST SCENARIOS:
+   ------------------------
+   uv run python scripts/run_test_scenarios.py --phone +15035550101
+
+   This will:
+   - Run all 9 test scenarios from TEST_PROTOCOL.txt
+   - Create calls for each scenario
+   - Generate detailed test reports
+   - Save results to test_results_*.json and test_summary_*.txt
+
+   Options:
+   --scenario <id>  - Run specific scenario (can use multiple times)
+                     Available: 1_service_repair, 2_installation_estimate,
+                     3_maintenance, 4_appointment_change, 5_emergency,
+                     6_warm_transfer, 7_knowledge_base, 8_out_of_area,
+                     9_brand_voice
+   
+   --wait           - Wait for calls to complete (slower but more detailed)
+   
+   Examples:
+   # Run only service repair test
+   uv run python scripts/run_test_scenarios.py --phone +15035550101 --scenario 1_service_repair
+   
+   # Run multiple specific scenarios
+   uv run python scripts/run_test_scenarios.py --phone +15035550101 --scenario 1_service_repair --scenario 5_emergency
+   
+   # Run all with detailed completion tracking
+   uv run python scripts/run_test_scenarios.py --phone +15035550101 --wait
+
+
+3. CHECK CALL LOGS:
+   -----------------
+   # List recent calls
+   uv run python scripts/check_call_logs.py
+   
+   # Check specific call
+   uv run python scripts/check_call_logs.py --call-id <call_id>
+   
+   # Check tool executions for a call
+   uv run python scripts/check_call_logs.py --call-id <call_id> --tools
+   
+   # Filter by assistant
+   uv run python scripts/check_call_logs.py --assistant-id <assistant_id> --limit 20
+
+
+4. CHECK TOOL EXECUTIONS:
+   -----------------------
+   uv run python scripts/check_call_logs.py --call-id <call_id> --tools
+
+   This shows:
+   - All tool calls made during the call
+   - Function calls executed
+   - Success/failure status
+   - Error messages if any
+   - Results returned
+
+================================================================================
+TEST SCENARIOS
+================================================================================
+
+Available scenarios (from TEST_PROTOCOL.txt):
+
+1. 1_service_repair - Service/repair request
+2. 2_installation_estimate - Installation/estimate request
+3. 3_maintenance - Maintenance request
+4. 4_appointment_change - Appointment rescheduling
+5. 5_emergency - Emergency situation
+6. 6_warm_transfer - Warm transfer to staff
+7. 7_knowledge_base - Knowledge base questions
+8. 8_out_of_area - Out of service area
+9. 9_brand_voice - Brand voice verification
+
+================================================================================
+UNDERSTANDING RESULTS
+================================================================================
+
+Call Status Values:
+- "queued" - Call is queued
+- "ringing" - Phone is ringing
+- "in-progress" - Call is active
+- "ended" - Call completed successfully
+- "failed" - Call failed
+- "no-answer" - No answer
+- "busy" - Line busy
+
+Tool Call Status:
+- "completed" - Tool executed successfully
+- "failed" - Tool execution failed
+- "pending" - Tool is waiting to execute
+
+Error Types:
+- "call_error" - Call-level error
+- "tool_error" - Tool execution error
+- "function_error" - Function execution error
+
+================================================================================
+OUTPUT FILES
+================================================================================
+
+After running tests, you'll get:
+
+1. test_results_YYYYMMDD_HHMMSS.json
+   - Full detailed results for all scenarios
+   - Includes call IDs, logs, transcripts, errors
+
+2. test_summary_YYYYMMDD_HHMMSS.txt
+   - Human-readable summary
+   - Quick overview of all tests
+   - Error highlights
+
+3. call_log_<call_id>_YYYYMMDD_HHMMSS.json
+   - Detailed log for a specific call
+   - Generated when checking individual calls
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+1. "API key not found"
+   - Set VAPI_API_KEY environment variable
+   - Or pass --api-key flag
+
+2. "Call not connecting"
+   - Verify phone number is in E.164 format (+1...)
+   - Check phone can receive calls
+   - Verify assistant ID is correct
+
+3. "No tool calls found"
+   - Call may not have completed yet
+   - Use --wait flag to wait for completion
+   - Check call status in Vapi dashboard
+
+4. "Tool execution failed"
+   - Check error message in logs
+   - Verify function endpoints are accessible
+   - Check API server is running
+
+5. "Timeout waiting for call"
+   - Call may be taking longer than expected
+   - Check Vapi dashboard for call status
+   - Increase timeout in script if needed
+
+================================================================================
+WORKFLOW RECOMMENDATION
+================================================================================
+
+1. Start with quick test:
+   uv run python scripts/quick_test.py "Hello" --phone +15035550101
+
+2. Check the call logs:
+   uv run python scripts/check_call_logs.py --call-id <call_id_from_step_1>
+
+3. Run specific scenario:
+   uv run python scripts/run_test_scenarios.py --phone +15035550101 --scenario 1_service_repair
+
+4. Review results in test_summary_*.txt
+
+5. Run all scenarios:
+   uv run python scripts/run_test_scenarios.py --phone +15035550101 --wait
+
+6. Analyze all results in test_results_*.json
+
+================================================================================
+INTEGRATION WITH TEST_PROTOCOL.txt
+================================================================================
+
+Each scenario in run_test_scenarios.py corresponds to a test in TEST_PROTOCOL.txt:
+
+- Scenario 1 = TEST 1: Inbound Call - Service/Repair Request
+- Scenario 2 = TEST 2: Inbound Call - Installation/Estimate Request
+- Scenario 3 = TEST 3: Inbound Call - Maintenance Request
+- Scenario 4 = TEST 4: Inbound Call - Appointment Change
+- Scenario 5 = TEST 5: Inbound Call - Emergency Situation
+- Scenario 6 = TEST 6: Inbound Call - Warm Transfer
+- Scenario 7 = TEST 7: Inbound Call - Knowledge Base Testing
+- Scenario 8 = TEST 8: Inbound Call - Out of Service Area
+- Scenario 9 = TEST 9: Inbound Call - Brand Voice Verification
+
+Use TEST_PROTOCOL.txt for detailed step-by-step manual testing.
+Use these scripts for automated testing and log analysis.
+
+================================================================================
+
