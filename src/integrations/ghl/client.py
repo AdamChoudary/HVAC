@@ -584,13 +584,7 @@ class GHLClient:
             date_start = start_date.split("T")[0] if "T" in start_date else start_date
             date_end = end_date.split("T")[0] if "T" in end_date else end_date
             
-            # CRITICAL: Fetch all appointments for date range from GHL API, then check each slot
-            # This ensures we exclude booked slots based on actual appointment data with date/time
             logger.info(f"🔍 Fetching appointments from GHL API for calendar {calendar_id} from {date_start} to {date_end}")
-            logger.info(f"   This is REQUIRED to exclude booked slots from available slots")
-            
-            # Fetch appointments for the entire date range (one API call)
-            # This gets appointments with their date and time so we can exclude those slots
             appointments = await self.get_appointments_for_date_range(
                 calendar_id=calendar_id,
                 start_date=start_date,
@@ -603,34 +597,25 @@ class GHLClient:
             cache_has_data = calendar_id in cache_stats.get("cache", {})
             
             if appointments:
-                logger.info(f"✅ Fetched {len(appointments)} appointments from GHL API - these will be used to EXCLUDE booked slots")
-                # Log ALL appointments for debugging (not just first 3)
+                logger.info(f"✅ Fetched {len(appointments)} appointments from GHL API")
                 for idx, apt in enumerate(appointments, 1):
                     apt_start = apt.get("startTime") or apt.get("start_time") or apt.get("startDate") or apt.get("start") or "unknown"
                     apt_end = apt.get("endTime") or apt.get("end_time") or apt.get("endDate") or apt.get("end") or "unknown"
                     apt_title = apt.get("title") or apt.get("name") or apt.get("subject") or "Untitled"
                     apt_id = apt.get("id") or apt.get("appointmentId") or "no-id"
-                    logger.info(f"   📅 Appointment #{idx}: '{apt_title}' | ID: {apt_id} | Start: {apt_start} | End: {apt_end}")
-                    logger.info(f"      This appointment will EXCLUDE its time slot from available slots")
+                    logger.debug(f"📅 Appointment #{idx}: '{apt_title}' | ID: {apt_id} | Start: {apt_start} | End: {apt_end}")
             else:
-                logger.warning(f"⚠️ No appointments fetched from GHL API")
-                logger.warning(f"   Calendar ID: {calendar_id}, Date range: {date_start} to {date_end}")
-                logger.warning(f"   ⚠️ WARNING: Cannot exclude booked slots - all slots will appear as available!")
+                logger.warning(f"⚠️ No appointments fetched from GHL API (Calendar: {calendar_id}, Range: {date_start} to {date_end})")
                 if cache_has_data:
-                    logger.info(f"   📋 Using in-memory cache as fallback to detect booked slots")
+                    logger.info(f"📋 Using in-memory cache as fallback")
                 else:
-                    logger.error(f"   ❌ CRITICAL: No appointments from API AND no cache data!")
-                    logger.error(f"   ⚠️ Cannot detect booked slots - all will appear as available!")
+                    logger.error(f"❌ No appointments from API and no cache data - cannot exclude booked slots")
             
             # Parse date range
             start = datetime.fromisoformat(start_date.split("T")[0] if "T" in start_date else start_date).date()
             end = datetime.fromisoformat(end_date.split("T")[0] if "T" in end_date else end_date).date()
             
-            # Log the date range we're working with
             logger.info(f"📅 Date range for slot generation: {start} to {end}")
-            
-            # Don't adjust start date - use the requested date range as-is
-            # The calling function (check_calendar_availability) already handles date validation
             if end < start:
                 end = start + timedelta(days=7)
                 logger.warning(f"⚠️ End date adjusted to {end} (7 days from start)")
@@ -658,36 +643,24 @@ class GHLClient:
                         if slot_end > end_time:
                             break
                         
-                        # Check if this specific slot is available based on fetched appointment data
                         slot_start_str = current_time.isoformat()
                         slot_end_str = slot_end.isoformat()
                         
-                        # CRITICAL: Check slot availability against fetched appointments from GHL API
-                        # This will exclude slots where appointments are booked (with time/date)
-                        # The appointments list contains all booked appointments with their date and time
-                        # check_slot_availability will compare each slot against these appointments
-                        # and return False if the slot overlaps with any appointment
                         is_available = await self.check_slot_availability(
                             calendar_id=calendar_id,
                             slot_start=current_time,
                             slot_end=slot_end,
-                            appointments=appointments  # CRITICAL: Use appointments fetched from GHL API (with time/date) to exclude booked slots
+                            appointments=appointments
                         )
-                        
-                        # Only add slot if it's confirmed as available (not booked)
-                        # If is_available is False, the slot overlaps with a booked appointment and should be excluded
                         if is_available:
                             slots.append({
                                 "startTime": slot_start_str,
                                 "endTime": slot_end_str,
                                 "available": True
                             })
-                            slot_time_str = current_time.strftime("%Y-%m-%d %H:%M")
-                            logger.info(f"✅ INCLUDING available slot: {slot_time_str}")
+                            logger.debug(f"✅ Available slot: {current_time.strftime('%Y-%m-%d %H:%M')}")
                         else:
-                            # Log that we're excluding a booked slot
-                            slot_time_str = current_time.strftime("%Y-%m-%d %H:%M")
-                            logger.info(f"⏭️ EXCLUDING booked slot: {slot_time_str} (overlaps with appointment from API)")
+                            logger.debug(f"⏭️ Booked slot excluded: {current_time.strftime('%Y-%m-%d %H:%M')}")
                         
                         current_time += slot_duration
                 
@@ -724,6 +697,109 @@ class GHLClient:
             # Return empty list as fallback
             return []
     
+    async def get_calendar_free_slots(
+        self,
+        calendar_id: str,
+        start_date: str,
+        end_date: str,
+        timezone: str = "America/Los_Angeles",
+        user_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get free slots for a calendar using the official GHL endpoint.
+        GET /calendars/{calendarId}/free-slots
+        
+        This endpoint returns ONLY available (non-booked) slots.
+        
+        Args:
+            calendar_id: The calendar ID
+            start_date: Start date in YYYY-MM-DD format (or timestamp ms)
+            end_date: End date in YYYY-MM-DD format (or timestamp ms)
+            timezone: Timezone for slots (default: America/Los_Angeles)
+            user_id: Optional user ID if calendar is user-specific
+        """
+        endpoint = f"calendars/{calendar_id}/free-slots"
+        
+        # Convert dates to timestamps (ms) if they are strings
+        # GHL API expects timestamps in milliseconds
+        try:
+            if isinstance(start_date, str):
+                # Parse YYYY-MM-DD and create datetime at start of day in Pacific timezone
+                from zoneinfo import ZoneInfo
+                pacific_tz = ZoneInfo("America/Los_Angeles")
+                dt = datetime.fromisoformat(start_date.split("T")[0])
+                dt = dt.replace(tzinfo=pacific_tz)
+                start_ms = int(dt.timestamp() * 1000)
+            else:
+                start_ms = start_date
+                
+            if isinstance(end_date, str):
+                # Parse YYYY-MM-DD and create datetime at end of day in Pacific timezone
+                from zoneinfo import ZoneInfo
+                pacific_tz = ZoneInfo("America/Los_Angeles")
+                dt = datetime.fromisoformat(end_date.split("T")[0])
+                # End of day (23:59:59)
+                dt = dt.replace(hour=23, minute=59, second=59, tzinfo=pacific_tz)
+                end_ms = int(dt.timestamp() * 1000)
+            else:
+                end_ms = end_date
+        except Exception as e:
+            logger.error(f"Error converting dates for free-slots: {e}")
+            return []
+            
+        params = {
+            "startDate": str(start_ms),
+            "endDate": str(end_ms),
+            "timezone": timezone
+        }
+        
+        # Add userId if provided (some calendars require this)
+        if user_id:
+            params["userId"] = user_id
+        
+        try:
+            logger.info(f"🔍 Fetching FREE SLOTS (available only, excludes booked) for calendar {calendar_id}")
+            logger.info(f"   📅 Date range: {start_date} to {end_date} ({timezone})")
+            logger.info(f"   🔢 Timestamps: {start_ms} to {end_ms}")
+            if user_id:
+                logger.info(f"   👤 User ID: {user_id}")
+            logger.debug(f"   Full params: {params}")
+            
+            result = await self._request("GET", endpoint, params=params)
+            
+            # Log raw response for debugging
+            logger.info(f"📦 Raw API response type: {type(result)}")
+            if isinstance(result, dict):
+                logger.info(f"   Response keys: {list(result.keys())}")
+            logger.debug(f"   Full response: {json.dumps(result, default=str)[:500]}")
+            
+            # Result is usually a dict with "slots" key or just a list
+            if isinstance(result, dict):
+                slots = result.get("slots", []) or result.get("data", []) or result.get("freeSlots", [])
+            elif isinstance(result, list):
+                slots = result
+            else:
+                slots = []
+                
+            logger.info(f"{'✅' if slots else '⚠️'} Found {len(slots)} FREE slots from GHL API")
+            
+            if not slots:
+                logger.warning(f"⚠️ No free slots returned. This could mean:")
+                logger.warning(f"   1. Calendar is fully booked for this date range")
+                logger.warning(f"   2. Calendar doesn't have availability configured in GHL")
+                logger.warning(f"   3. Calendar requires userId parameter (try adding user_id)")
+                logger.warning(f"   4. Date range is outside calendar's configured availability window")
+            else:
+                # Log first few slots for verification
+                for i, slot in enumerate(slots[:3], 1):
+                    logger.info(f"   Slot {i}: {slot}")
+                    
+            return slots
+            
+        except GHLAPIError as e:
+            logger.error(f"❌ Failed to get free slots: {str(e)}")
+            return []
+
     async def trigger_appointment_webhook(
         self,
         calendar_id: str,

@@ -1,5 +1,6 @@
 from src.models import BookAppointmentRequest, BookAppointmentResponse
 from src.integrations.ghl import GHLClient
+from src.utils.service_area import is_in_service_area
 
 
 async def book_appointment(request: BookAppointmentRequest) -> BookAppointmentResponse:
@@ -10,6 +11,35 @@ async def book_appointment(request: BookAppointmentRequest) -> BookAppointmentRe
     which triggers a GHL automation to create the appointment.
     """
     from src.utils.logging import logger
+    
+    # --- Service Area Validation ---
+    # Extract zip code from service address if possible
+    # This is a basic extraction, assuming address format ends with zip or contains it
+    # Ideally, the frontend/Vapi would extract the zip code into a separate field
+    
+    # Try to validate if address is provided
+    if request.service_address:
+        # Simple heuristic: look for 5 digit number in address
+        import re
+        zip_match = re.search(r'\b\d{5}\b', request.service_address)
+        zip_code = zip_match.group(0) if zip_match else None
+        
+        # Also try to extract city (this is harder without structured data, skipping for now unless explicit)
+        # We rely mainly on zip code if available
+        
+        if zip_code:
+            is_valid, reason = is_in_service_area(zip_code=zip_code)
+            if not is_valid:
+                logger.warning(f"⚠️ Service area validation failed for {request.service_address}: {reason}")
+                return BookAppointmentResponse(
+                    appointment_id="",
+                    success=False,
+                    message=(
+                        f"SERVICE_AREA_ERROR: {reason} "
+                        f"We primarily serve the Salem, OR area (20-25 mile radius) and specific cities to the north. "
+                        f"Please confirm your location."
+                    )
+                )
     
     ghl = GHLClient()
     

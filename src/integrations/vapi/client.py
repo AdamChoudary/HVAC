@@ -92,6 +92,10 @@ class VapiClient:
         """Create phone number in Vapi"""
         return await self._request("POST", "phone-number", data=phone_number_config)
     
+    async def get_phone_number(self, phone_number_id: str) -> Dict[str, Any]:
+        """Get phone number details"""
+        return await self._request("GET", f"phone-number/{phone_number_id}")
+    
     async def create_call(self, call_config: Dict[str, Any]) -> Dict[str, Any]:
         """Create outbound call"""
         return await self._request("POST", "call", data=call_config)

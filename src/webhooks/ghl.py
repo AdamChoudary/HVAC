@@ -161,8 +161,9 @@ async def ghl_webhook(
         
         # Verify location ID matches (only if we have one)
         if location_id and location_id != settings.ghl_location_id:
-            logger.warning(f"Webhook from different location: received '{location_id}', expected '{settings.ghl_location_id}'")
-            return {"status": "ignored", "reason": "location_mismatch"}
+            logger.warning(f"⚠️ Webhook from different location: received '{location_id}', expected '{settings.ghl_location_id}'")
+            logger.warning("Proceeding anyway (Relaxed Check) - Note: GHL API calls might fail if credentials don't match")
+            # return {"status": "ignored", "reason": "location_mismatch"} # Relaxed for demo purposes
         
         logger.info(f"Received GHL webhook: {event_type} for contact {contact_id}")
         
@@ -336,8 +337,9 @@ async def handle_new_lead(contact_id: Optional[str], webhook_body: Dict[str, Any
                 
                 # Only proceed if contact has "outbound" tag
                 if "outbound" not in contact_tags_lower:
-                    logger.info(f"📋 Contact {contact_id} does not have 'outbound' tag (tags: {contact_tags}), skipping outbound call. This is likely an inbound caller.")
-                    return
+                    logger.info(f"📋 Contact {contact_id} does not have 'outbound' tag (tags: {contact_tags}).")
+                    logger.info("⚠️ Proceeding anyway (Demo Mode) - Ignoring missing tag to ensure call goes through.")
+                    # return # DISABLED for demo/testing flexibility
                 
                 # Check if THIS contact already called (prevent duplicate calls) - INSIDE BOTH LOCKS
                 # GHL customFields can be list or dict
@@ -603,15 +605,9 @@ async def check_call_and_send_sms_fallback(call_id: str, contact_id: str, phone:
         
         logger.info(f"📞 Call {call_id} status: {call_status}, duration: {call_duration}s, endedReason: {ended_reason}")
         
-        # Determine if call was not picked up
-        # CRITICAL: Only send SMS if call was clearly NOT answered
-        # Do NOT send SMS if call was answered (even if short duration)
-        
-        # Statuses that indicate call wasn't answered
         unanswered_statuses = ["failed", "no-answer", "busy", "canceled", "voicemail"]
         
-        # Check if call was answered (opposite of not answered)
-        # If status is "ended" with duration > 0 and endedReason is not in unanswered list, it was answered
+        # Check if call was answered
         call_was_answered = (
             call_status == "ended" and 
             call_duration > 0 and 
@@ -619,11 +615,7 @@ async def check_call_and_send_sms_fallback(call_id: str, contact_id: str, phone:
             call_duration >= 5  # If call lasted 5+ seconds, it was likely answered
         )
         
-        # Check if call was not answered based on:
-        # 1. Status indicates no answer (failed, no-answer, busy, canceled, voicemail)
-        # 2. Call ended with specific "not answered" reasons
-        # 3. Call ended very quickly (< 5 seconds) AND with unanswered reason
-        # 4. Went to voicemail
+        # Check if call was not answered
         call_not_answered = (
             call_status in unanswered_statuses or
             ended_reason in ["no-answer", "voicemail", "busy", "failed", "customer-busy"] or

@@ -1,10 +1,13 @@
 """
 Business hours utility for Scott Valley HVAC.
-Checks if current time is within business hours (8:00 AM - 4:30 PM, Monday-Friday, Pacific Time).
+Checks if current time is within business hours.
+Supports two schedules:
+1. FIELD_HOURS: 8:00 AM - 4:30 PM, Monday-Friday (For scheduling service)
+2. OFFICE_HOURS: 7:00 AM - 8:30 PM, Monday-Friday (For answering phones/transfers)
 """
 from dataclasses import dataclass
 from datetime import datetime, time
-from typing import Dict, Set, Optional
+from typing import Dict, Set, Optional, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
@@ -32,14 +35,25 @@ class OfficeHours:
         return self.start <= local_time <= self.end
 
 
-# Scott Valley HVAC Business Hours: 8:00 AM - 4:30 PM, Monday-Friday
-# Monday=0, Tuesday=1, Wednesday=2, Thursday=3, Friday=4
-WEEKDAY_HOURS: Dict[int, OfficeHours] = {
+# Schedule Types
+ScheduleType = Literal["field", "office"]
+
+# 1. Field/Service Hours: 8:00 AM - 4:30 PM, Monday-Friday
+FIELD_HOURS: Dict[int, OfficeHours] = {
     0: OfficeHours(start=time(hour=8, minute=0), end=time(hour=16, minute=30)),  # Monday
     1: OfficeHours(start=time(hour=8, minute=0), end=time(hour=16, minute=30)),  # Tuesday
     2: OfficeHours(start=time(hour=8, minute=0), end=time(hour=16, minute=30)),  # Wednesday
     3: OfficeHours(start=time(hour=8, minute=0), end=time(hour=16, minute=30)),  # Thursday
     4: OfficeHours(start=time(hour=8, minute=0), end=time(hour=16, minute=30)),  # Friday
+}
+
+# 2. Office/Phone Hours: 7:00 AM - 8:30 PM, Monday-Friday
+OFFICE_HOURS: Dict[int, OfficeHours] = {
+    0: OfficeHours(start=time(hour=7, minute=0), end=time(hour=20, minute=30)),  # Monday
+    1: OfficeHours(start=time(hour=7, minute=0), end=time(hour=20, minute=30)),  # Tuesday
+    2: OfficeHours(start=time(hour=7, minute=0), end=time(hour=20, minute=30)),  # Wednesday
+    3: OfficeHours(start=time(hour=7, minute=0), end=time(hour=20, minute=30)),  # Thursday
+    4: OfficeHours(start=time(hour=7, minute=0), end=time(hour=20, minute=30)),  # Friday
 }
 
 # Holidays when business is closed
@@ -67,33 +81,31 @@ def _ensure_pacific(reference_time: datetime) -> datetime:
     return reference_time.astimezone(PACIFIC_TZ)
 
 
-def check_business_hours(reference_time: Optional[datetime] = None) -> Dict[str, any]:
+def check_business_hours(reference_time: Optional[datetime] = None, schedule_type: ScheduleType = "field") -> Dict[str, any]:
     """
     Determine if a given time falls within business hours.
     
     Args:
         reference_time: Optional datetime to check. Defaults to current Pacific time.
+        schedule_type: "field" (8a-4:30p) or "office" (7a-8:30p). Defaults to "field".
     
     Returns:
-        dict containing:
-            - isBusinessHours (bool): Whether it's currently business hours
-            - message (str): Human-readable message about business status
-            - day (str): Day of week name
-            - timezone (str): Timezone used
-            - currentTime (str): Current time in Pacific Time
-            - currentDate (str): Current date (YYYY-MM-DD)
-            - businessHoursToday (str): Business hours for today
+        dict containing status and messages.
     """
     current_time = _ensure_pacific(reference_time) if reference_time else get_current_time_pacific()
     day_of_week = current_time.weekday()  # Monday=0, Sunday=6
     current_date_str = current_time.strftime("%Y-%m-%d")
     current_time_str = current_time.strftime("%I:%M %p").lstrip("0")
     
+    # Select schedule
+    schedule = FIELD_HOURS if schedule_type == "field" else OFFICE_HOURS
+    schedule_name = "Field Service" if schedule_type == "field" else "Office"
+    
     # Check if it's a holiday
     if current_date_str in HOLIDAYS:
         return {
             "isBusinessHours": False,
-            "message": "We're closed today for a holiday. Our regular hours are Monday through Friday, 8:00 AM to 4:30 PM Pacific Time.",
+            "message": f"We're closed today for a holiday.",
             "day": current_time.strftime("%A"),
             "timezone": "America/Los_Angeles",
             "currentTime": current_time_str,
@@ -103,10 +115,10 @@ def check_business_hours(reference_time: Optional[datetime] = None) -> Dict[str,
         }
     
     # Check if it's a weekday
-    if day_of_week not in WEEKDAY_HOURS:
+    if day_of_week not in schedule:
         return {
             "isBusinessHours": False,
-            "message": "We're closed on weekends. Our business hours are Monday through Friday, 8:00 AM to 4:30 PM Pacific Time.",
+            "message": f"We're closed on weekends.",
             "day": current_time.strftime("%A"),
             "timezone": "America/Los_Angeles",
             "currentTime": current_time_str,
@@ -115,7 +127,7 @@ def check_business_hours(reference_time: Optional[datetime] = None) -> Dict[str,
             "businessHoursToday": "Closed (Weekend)",
         }
     
-    office_hours = WEEKDAY_HOURS[day_of_week]
+    office_hours = schedule[day_of_week]
     
     if office_hours.contains(current_time):
         end_display = office_hours.end.strftime("%I:%M %p").lstrip("0")
@@ -140,13 +152,13 @@ def check_business_hours(reference_time: Optional[datetime] = None) -> Dict[str,
     else:
         # After hours - next open is tomorrow (or Monday if it's Friday)
         if day_of_week == 4:  # Friday
-            next_open = "Monday at 8:00 AM"
+            next_open = "Monday at " + (schedule[0].start.strftime("%I:%M %p").lstrip("0"))
         else:
             next_open = f"tomorrow at {start_display}"
     
     return {
         "isBusinessHours": False,
-        "message": f"We're currently closed. Our hours today are {start_display} to {end_display} Pacific Time. We'll be open {next_open}.",
+        "message": f"We're currently closed. Our {schedule_name} hours today are {start_display} to {end_display} Pacific Time. We'll be open {next_open}.",
         "day": current_time.strftime("%A"),
         "timezone": "America/Los_Angeles",
         "currentTime": current_time_str,
